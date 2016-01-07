@@ -3,6 +3,7 @@ package io.mycat.net2;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +19,7 @@ public class SharedBufferPool {
 	private final LinkedTransferQueue<ByteBuffer> freeBuffers = new LinkedTransferQueue<ByteBuffer>();
 	private final long bufferSize;
 	private final int chunkSize;
-	private volatile int newCreated;
+	private final AtomicInteger newCreated;
 	private final boolean debug = true;
 	private long capactiy;
 
@@ -28,6 +29,8 @@ public class SharedBufferPool {
 		this.capactiy = size;
 		this.bufferSize = bufferSize;
 		this.chunkSize = chunkSize;
+		// 保证可见性
+		newCreated = new AtomicInteger();
 	}
 
 	/**
@@ -40,7 +43,7 @@ public class SharedBufferPool {
 	public ByteBuffer allocate() {
 		ByteBuffer node = freeBuffers.poll();
 		if (node == null) {
-			newCreated++;
+			newCreated.getAndIncrement();
 			node = this.createDirectBuffer(chunkSize);
 		} else {
 			node.clear();
@@ -98,7 +101,7 @@ public class SharedBufferPool {
 	}
 
 	public int getNewCreated() {
-		return newCreated;
+		return newCreated.get();
 	}
 
 	public long getCapactiy() {
