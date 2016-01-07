@@ -65,7 +65,8 @@ public class TestReactorBufferPool {
 				}
 			}
 		}
-		Assert.assertEquals(100, sharedPool.getNewCreated());
+		// 10个线程*分配100个ByteBuffer=1000
+		Assert.assertEquals(1000, sharedPool.getNewCreated());
 
 	}
 }
