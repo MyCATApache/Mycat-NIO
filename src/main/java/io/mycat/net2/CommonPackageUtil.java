@@ -5,6 +5,10 @@ import java.nio.ByteBuffer;
 public class CommonPackageUtil {
 	private final static int msyql_packetHeaderSize=4;
 	private static final int getPacketLength(ByteBuffer buffer, int offset, int position) {
+	    // 处理包头被分割时ByteBuffer越界的情况
+        if (offset + msyql_packetHeaderSize >= position) {
+            return -1;
+        }
 		int length = buffer.get(offset) & 0xff;
 		length |= (buffer.get(++offset) & 0xff) << 8;
 		length |= (buffer.get(++offset) & 0xff) << 16;
@@ -55,8 +59,9 @@ public class CommonPackageUtil {
 					bufferArray.increatePackageIndex();
 					offset = position - exceededSize;
 				} else {// 当前数据包还没读完
-					offset = position + 1;
-
+					offset = 0;
+					// 立即返回，否则会将当前ByteBuffer当成新报文去读
+					return offset;
 				}
 
 			}
