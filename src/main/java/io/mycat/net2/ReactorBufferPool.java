@@ -34,6 +34,10 @@ public class ReactorBufferPool {
 		return freeBuffers.size();
 	}
 
+	public Thread getReactorThread() {
+		return reactorThread;
+	}
+
 	/**
 	 * 分配一个ByteBufferArray,ByteBufferArray使用完成后需要回收
 	 * 

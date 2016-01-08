@@ -65,7 +65,7 @@ public class TestReactorBufferPool {
 				}
 			}
 		}
-		Assert.assertEquals(100, sharedPool.getNewCreated());
+		Assert.assertEquals(true, (sharedPool.getNewCreated()<=1000));
 
 	}
 }

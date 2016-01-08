@@ -6,6 +6,7 @@ import java.util.ArrayList;
 /**
  * ByteBuffer数组，扩展的时候从BufferPool里动态获取可用的Buffer 非线程安全类
  * 
+ * 
  * @author wuzhih
  *
  */
@@ -13,6 +14,9 @@ public class ByteBufferArray {
 	private final ReactorBufferPool bufferPool;
 
 	private final ArrayList<ByteBuffer> writedBlockLst = new ArrayList<ByteBuffer>(4);
+	// 此Array中包括的消息报文长度（byte 字节的长度而不是writedBlockLst中的次序）
+	private final int[] packageLengths = new int[8];
+	private int curPacageIndex = 0;
 
 	public ByteBufferArray(ReactorBufferPool bufferPool) {
 		super();
@@ -20,8 +24,64 @@ public class ByteBufferArray {
 
 	}
 
-	public int getBlockCount() {
-		return writedBlockLst.size() + 1;
+	public int getCurPacageIndex() {
+		return curPacageIndex;
+	}
+
+	/**
+	 * 当前线程是否是此对象所属的Reactor线程
+	 * 
+	 * @return
+	 */
+	public boolean iscurReactorThread() {
+		return (Thread.currentThread() == bufferPool.getReactorThread());
+	}
+
+	/**
+	 * 获取当前ByteBuffer Posion位置相对应的绝对位置，比如此ByteBuffer之前有2个ByteBuffer，则绝对位置为
+	 * 第一个的长度+第二个的长度+本身的postion
+	 * 
+	 * @return
+	 */
+	public int getAbsByteBufPosion(ByteBuffer theButBuf) {
+		int absPos = 0;
+		int endBlock = writedBlockLst.size() - 1;
+		for (int i = 0; i < endBlock; i++) {
+			ByteBuffer bytBuf = writedBlockLst.get(i);
+			if (bytBuf != theButBuf) {
+				absPos += bytBuf.position();
+			}
+		}
+		return absPos + theButBuf.position();
+
+	}
+
+	/**
+	 * 返回当前所有bytebuffer里的字节数长度总和
+	 * 
+	 * @return
+	 */
+	public int getTotalBytesLength() {
+		int totalLen = 0;
+		int endBlock = writedBlockLst.size();
+		for (int i = 0; i < endBlock; i++) {
+			ByteBuffer bytBuf = writedBlockLst.get(i);
+			totalLen += bytBuf.position();
+		}
+		return totalLen;
+	}
+
+	/**
+	 * 计算所有packages的字节总数
+	 * 
+	 * @return
+	 */
+	public int calcTotalPackageSize() {
+		int totalBytes = 0;
+		for (int i = 0; i < this.curPacageIndex + 1; i++) {
+			totalBytes += packageLengths[i];
+		}
+		return totalBytes;
 	}
 
 	/**
@@ -30,8 +90,16 @@ public class ByteBufferArray {
 	 * @return
 	 */
 	public ByteBuffer getLastByteBuffer() {
-		int size = writedBlockLst.size();
-		return (size == 0) ? null : writedBlockLst.get(writedBlockLst.size() - 1);
+		return writedBlockLst.get(writedBlockLst.size() - 1);
+
+	}
+
+	public int getBlockCount() {
+		return writedBlockLst.size();
+	}
+
+	public ByteBuffer getBlock(int i) {
+		return writedBlockLst.get(i);
 	}
 
 	/**
@@ -50,14 +118,26 @@ public class ByteBufferArray {
 	}
 
 	/**
+	 * 设置package
+	 * 
+	 * @param packegeNum
+	 * @param startIndex
+	 */
+	public void setCurPackageLength(int packageLenth) {
+		this.packageLengths[curPacageIndex] = packageLenth;
+	}
+
+	/**
 	 * 将一个数组写入队列中
 	 * 
 	 * @param src
 	 */
 	public void write(byte[] src) {
-		ByteBuffer curWritingBlock = getLastByteBuffer();
-		if (curWritingBlock == null) {
-			curWritingBlock = addNewBuffer();
+		ByteBuffer curWritingBlock = null;
+		if (this.writedBlockLst.isEmpty()) {
+			curWritingBlock = this.addNewBuffer();
+		} else {
+			curWritingBlock = getLastByteBuffer();
 		}
 		int offset = 0;
 		int remains = src.length;
@@ -79,6 +159,12 @@ public class ByteBufferArray {
 		}
 	}
 
+	
+
+	public int getCurPacageLength() {
+		return this.packageLengths[this.curPacageIndex];
+	}
+
 	/**
 	 * 回收此对象，用完需要在合适的地方释放，否則產生內存泄露問題
 	 */
@@ -87,8 +173,16 @@ public class ByteBufferArray {
 	}
 
 	protected void clear() {
-
+		curPacageIndex = 0;
 		this.writedBlockLst.clear();
+		for (int i = 0; i < packageLengths.length; i++) {
+			packageLengths[i] = 0;
+		}
+
+	}
+
+	public void increatePackageIndex() {
+		curPacageIndex++;
 
 	}
 
