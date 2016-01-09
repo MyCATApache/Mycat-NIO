@@ -1,4 +1,4 @@
-package io.mycat.net2;
+package io.mycat.net2.mysql;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -10,8 +10,12 @@ import java.util.List;
 
 import org.junit.Test;
 
+import io.mycat.net2.ByteBufferArray;
+import io.mycat.net2.ReactorBufferPool;
+import io.mycat.net2.SharedBufferPool;
 import io.mycat.net2.mysql.MySQLConnection;
 import io.mycat.net2.mysql.MySQLFrontendConnection;
+import io.mycat.net2.mysql.MySQLPacket;
 import junit.framework.Assert;
 
 public class TestMySQLPackageSplitter {

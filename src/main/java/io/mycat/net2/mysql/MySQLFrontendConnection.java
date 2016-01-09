@@ -5,8 +5,6 @@ import java.nio.channels.SocketChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.mycat.net2.MySQLPacket;
-
 public class MySQLFrontendConnection extends MySQLConnection {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MySQLFrontendConnection.class);
