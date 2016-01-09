@@ -21,11 +21,11 @@ public class TestMySQLPackageSplitter {
      */
     @Test
     public void testSpliter() throws IOException {
-        splitPackage(createRandomMysgqlPackages(10), 10, 10240);
+        ByteBufferArray bufArray = splitPackage(createRandomMysgqlPackages(10), 10240);
+        Assert.assertEquals(10, bufArray.getCurPacageIndex());
     }
 
-    private void splitPackage(ByteArrayInputStream mysqlPackgsStream, int packagesCount, int chunkSize)
-            throws IOException {
+    private ByteBufferArray splitPackage(ByteArrayInputStream mysqlPackgsStream, int chunkSize) throws IOException {
         SharedBufferPool sharedPool = new SharedBufferPool(1024 * 1024 * 100, chunkSize);
         ReactorBufferPool reactBufferPool = new ReactorBufferPool(sharedPool, Thread.currentThread(), 1000);
         ByteBufferArray bufArray = reactBufferPool.allocate();
@@ -43,7 +43,7 @@ public class TestMySQLPackageSplitter {
             curBuf.put(data, 0, readed);
             readBufferOffset = CommonPackageUtil.parsePackages(bufArray, curBuf, readBufferOffset);
         }
-        Assert.assertEquals(packagesCount, bufArray.getCurPacageIndex());
+        return bufArray;
     }
 
     /**
@@ -83,16 +83,35 @@ public class TestMySQLPackageSplitter {
         p[0] = (byte) (len & 0xFF);
         p[1] = (byte) ((len >> 8) & 0xFF);
         p[2] = (byte) ((len >> 16) & 0xFF);
+        for (int i = 0; i < len; i++) {
+            p[4 + i] = (byte) i;
+        }
         return p;
     }
 
     /**
-     * 创建2个报文，第二个报文Header被拆分，测试能否读到正确长度
+     * 创建4个报文，第2、4个报文Header被拆分，测试能否读到正确长度
+     * 
      * @throws IOException
      */
     @Test
     public void testHeaderSpliter() throws IOException {
-        splitPackage(createMultiPackage(Arrays.asList(20, 200)), 2, 26);
+        ByteBufferArray bufArray = splitPackage(createMultiPackage(Arrays.asList(20, 40, 20, 40)), 26);
+        Assert.assertEquals(4, bufArray.getCurPacageIndex());
+    }
+
+    /**
+     * 创建4个报文，第二个报文的type被截断，后面的报文type不被截断，测试是否能读到type
+     * @throws IOException
+     */
+    @Test
+    public void testExceeded() throws IOException {
+        ByteBufferArray bufArray = splitPackage(createMultiPackage(Arrays.asList(16, 30, 40, 20)), 26);
+        Assert.assertEquals(4, bufArray.getCurPacageIndex());
+        for (int i = 0; i < 4; i++) {
+            // type=0+1+2+3+4+5+6+7
+            Assert.assertEquals(28, bufArray.getPacageType(i));
+        }
     }
 
     private ByteArrayInputStream createMultiPackage(List<Integer> lenList) throws IOException {
@@ -100,6 +119,7 @@ public class TestMySQLPackageSplitter {
         for (int len : lenList) {
             baos.write(createPackage(len));
         }
+        baos.flush();
         return new ByteArrayInputStream(baos.toByteArray());
     }
 }

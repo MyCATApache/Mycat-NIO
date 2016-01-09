@@ -13,6 +13,12 @@ import java.util.Arrays;
  */
 public class ByteBufferArray {
 
+	/** packageLengths数组中表示报文类型的偏移量 */
+	private static final int PACKAGE_TYPE_SHIFT = 24;
+	
+	/** packageLengths数组中表示包长度低 24位 */
+	private static final int PACKAGE_LENGTH_UNIT = (1 << PACKAGE_TYPE_SHIFT) - 1;
+	
 	/** packageLengths数组容量 */
 	private static final int CAPACITY = 4;
 
@@ -84,7 +90,7 @@ public class ByteBufferArray {
 	public int calcTotalPackageSize() {
 		int totalBytes = 0;
 		for (int i = 0; i < this.curPacageIndex + 1; i++) {
-			totalBytes += packageLengths[i];
+			totalBytes += packageLengths[i] & PACKAGE_LENGTH_UNIT;
 		}
 		return totalBytes;
 	}
@@ -129,7 +135,11 @@ public class ByteBufferArray {
 	 * @param startIndex
 	 */
 	public void setCurPackageLength(int packageLenth) {
-		this.packageLengths[curPacageIndex] = packageLenth;
+		this.packageLengths[curPacageIndex] = (getCurPacageType() << PACKAGE_TYPE_SHIFT) | packageLenth;
+	}
+	
+	public void setCurPackageType(int packageType){
+		this.packageLengths[curPacageIndex] = (packageType << PACKAGE_TYPE_SHIFT) | getCurPacageLength();
 	}
 
 	/**
@@ -165,7 +175,15 @@ public class ByteBufferArray {
 	}
 
 	public int getCurPacageLength() {
-		return this.packageLengths[this.curPacageIndex];
+		return this.packageLengths[this.curPacageIndex] & PACKAGE_LENGTH_UNIT;
+	}
+	
+	public int getCurPacageType() {
+		return getPacageType(this.curPacageIndex);
+	}
+	
+	public int getPacageType(int index){
+		return this.packageLengths[index] >>> PACKAGE_TYPE_SHIFT;
 	}
 
 	/**
