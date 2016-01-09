@@ -472,8 +472,9 @@ public abstract class Connection implements ClosableConnection {
 					// 没有可读的机会，等待下次读取
 					readAgain = false;
 				}
-				this.readBufferOffset = CommonPackageUtil.parsePackages(this.readBufferArray, readBuffer,
-						readBufferOffset);
+				//TODO 目前CommonPackageUtil依赖MySQLConnection后，不知这里如何实现
+//				this.readBufferOffset = CommonPackageUtil.parsePackages(this.readBufferArray, readBuffer,
+//						readBufferOffset, this);
 			}
 			}
 		}
