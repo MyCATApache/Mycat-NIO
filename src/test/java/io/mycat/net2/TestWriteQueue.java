@@ -1,6 +1,7 @@
 package io.mycat.net2;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import org.junit.Test;
 
@@ -24,7 +25,8 @@ public class TestWriteQueue {
 		{ByteBufferArray bufArray = reactBufferPool.allocate();
 			ByteBuffer buf = bufArray.addNewBuffer();
 			buf.put(new String(testS + i).getBytes());
-			queue.add(reactBufferPool.allocate());
+			// 将这次分配好的bufferArray放入写队列，不应重新分配
+			queue.add(bufArray);
 		}
 		for(int i=0;i<10000;i++)
 		{
@@ -32,7 +34,10 @@ public class TestWriteQueue {
 			ByteBuffer byteBuff=arry.getLastByteBuffer();
 			byteBuff.flip();
 			byte[] data=new byte[byteBuff.remaining()];
-			Assert.assertEquals(data, (testS+i).getBytes());
+			// 从ByteBuffer中正确读入数据
+			byteBuff.get(data);
+			// 字节数组使用Arrays.equals比较
+			Assert.assertTrue(Arrays.equals(data, (testS+i).getBytes()));
 		}
 	}
 }
