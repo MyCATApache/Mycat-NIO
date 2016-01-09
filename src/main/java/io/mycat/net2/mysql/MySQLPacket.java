@@ -1,4 +1,4 @@
-package io.mycat.net2;
+package io.mycat.net2.mysql;
 
 public interface MySQLPacket {
     /** 未解析报文 */

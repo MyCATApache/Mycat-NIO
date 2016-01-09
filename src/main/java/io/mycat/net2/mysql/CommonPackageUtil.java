@@ -1,13 +1,12 @@
-package io.mycat.net2;
+package io.mycat.net2.mysql;
 
 import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.mycat.net2.mysql.MySQLBackendConnection;
-import io.mycat.net2.mysql.MySQLConnection;
-import io.mycat.net2.mysql.MySQLFrontendConnection;
+import io.mycat.net2.ByteBufferArray;
+import io.mycat.net2.Connection;
 
 public class CommonPackageUtil {
 

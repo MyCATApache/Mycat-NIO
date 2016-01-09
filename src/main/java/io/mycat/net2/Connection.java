@@ -472,9 +472,9 @@ public abstract class Connection implements ClosableConnection {
 					// 没有可读的机会，等待下次读取
 					readAgain = false;
 				}
-				//TODO 目前CommonPackageUtil依赖MySQLConnection后，不知这里如何实现
-//				this.readBufferOffset = CommonPackageUtil.parsePackages(this.readBufferArray, readBuffer,
-//						readBufferOffset, this);
+				
+				//子类负责解析报文
+                parseProtocolPakage(this.readBufferArray, readBuffer, readBufferOffset);
 			}
 			}
 		}
@@ -490,7 +490,10 @@ public abstract class Connection implements ClosableConnection {
 
 	}
 
-	private void closeSocket() {
+    protected abstract void parseProtocolPakage(ByteBufferArray readBufferArray, ByteBuffer readBuffer,
+            int readBufferOffset);
+
+    private void closeSocket() {
 
 		if (channel != null) {
 			boolean isSocketClosed = true;
