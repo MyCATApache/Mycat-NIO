@@ -4,12 +4,26 @@ import java.nio.ByteBuffer;
 
 public class CommonPackageUtil {
 	private final static int msyql_packetHeaderSize=4;
+	
+	/**
+	 * 获取报文长度
+	 * @param buffer 报文buffer
+	 * @param offset buffer解析位置偏移量
+	 * @param position buffer已读位置偏移量
+	 * @return 报文长度(Header长度+内容长度)
+	 */
 	private static final int getPacketLength(ByteBuffer buffer, int offset, int position) {
+		// 处理包头被分割时ByteBuffer越界的情况
+		if (offset + msyql_packetHeaderSize >= position) {
+			return -1;
+		}
 		int length = buffer.get(offset) & 0xff;
 		length |= (buffer.get(++offset) & 0xff) << 8;
 		length |= (buffer.get(++offset) & 0xff) << 16;
 		return length + msyql_packetHeaderSize;
 	}
+	
+	
 	/**
 	 * 解析出Package边界,Package为MSQL格式的报文，其他报文可以类比，
 	 * @param readBuffer 当前（最后一个bytebuffer）
@@ -55,8 +69,9 @@ public class CommonPackageUtil {
 					bufferArray.increatePackageIndex();
 					offset = position - exceededSize;
 				} else {// 当前数据包还没读完
-					offset = position + 1;
-
+					offset = 0;
+					// 立即返回，否则会将当前ByteBuffer当成新报文去读
+					break;
 				}
 
 			}

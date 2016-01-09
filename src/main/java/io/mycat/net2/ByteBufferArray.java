@@ -2,6 +2,7 @@ package io.mycat.net2;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * ByteBuffer数组，扩展的时候从BufferPool里动态获取可用的Buffer 非线程安全类
@@ -11,11 +12,15 @@ import java.util.ArrayList;
  *
  */
 public class ByteBufferArray {
+
+	/** packageLengths数组容量 */
+	private static final int CAPACITY = 4;
+
 	private final ReactorBufferPool bufferPool;
 
 	private final ArrayList<ByteBuffer> writedBlockLst = new ArrayList<ByteBuffer>(4);
 	// 此Array中包括的消息报文长度（byte 字节的长度而不是writedBlockLst中的次序）
-	private final int[] packageLengths = new int[8];
+	private int[] packageLengths = new int[CAPACITY];
 	private int curPacageIndex = 0;
 
 	public ByteBufferArray(ReactorBufferPool bufferPool) {
@@ -159,8 +164,6 @@ public class ByteBufferArray {
 		}
 	}
 
-	
-
 	public int getCurPacageLength() {
 		return this.packageLengths[this.curPacageIndex];
 	}
@@ -182,8 +185,10 @@ public class ByteBufferArray {
 	}
 
 	public void increatePackageIndex() {
-		curPacageIndex++;
-
+		// 超过预期报文数量，将数组容量扩展
+		if (++curPacageIndex >= CAPACITY) {
+			packageLengths = Arrays.copyOf(packageLengths, packageLengths.length + CAPACITY);
+		}
 	}
 
 }
