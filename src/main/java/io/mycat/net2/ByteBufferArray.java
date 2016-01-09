@@ -178,14 +178,14 @@ public class ByteBufferArray {
 		return this.packageLengths[this.curPacageIndex] & PACKAGE_LENGTH_UNIT;
 	}
 	
-	public int getCurPacageType() {
+	public byte getCurPacageType() {
 		return getPacageType(this.curPacageIndex);
 	}
 	
-	public int getPacageType(int index){
-		return this.packageLengths[index] >>> PACKAGE_TYPE_SHIFT;
+	public byte getPacageType(int index){
+		return (byte)(this.packageLengths[index] >>> PACKAGE_TYPE_SHIFT);
 	}
-
+	
 	/**
 	 * 回收此对象，用完需要在合适的地方释放，否則產生內存泄露問題
 	 */
