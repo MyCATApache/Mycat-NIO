@@ -108,7 +108,7 @@ public class CommonPackageUtil {
 				int packetType = bufferArray.getCurPacageType();
 				if (packetType == PacketType.UNREAD) {
 					packetType = getPacketType(readBuffer, offset, position);
-					if (packetType == -1) {
+					if (packetType == PacketType.SPLITTED) {
 						// 类型被截断
 						if (offset < position) {
 							// 如果类型有至少1个字节被截断，则复制到新buffer
@@ -116,7 +116,7 @@ public class CommonPackageUtil {
 						}
 						offset = 0;
 						break;
-					} else if (packetType < 0 || packetType > 255) {
+					} else if (packetType < 0 || packetType > 0xFF) {
 						// 类型错误
 						break;
 					} else {
@@ -152,5 +152,8 @@ public class CommonPackageUtil {
 	static interface PacketType {
 		/** 未解析报文 */
 		int UNREAD = 0;
+		
+		/** 被截断 */
+		int SPLITTED = -1;
 	}
 }
