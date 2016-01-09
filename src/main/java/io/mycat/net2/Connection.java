@@ -473,7 +473,7 @@ public abstract class Connection implements ClosableConnection {
 					readAgain = false;
 				}
 				this.readBufferOffset = CommonPackageUtil.parsePackages(this.readBufferArray, readBuffer,
-						readBufferOffset);
+						readBufferOffset, this);
 			}
 			}
 		}
