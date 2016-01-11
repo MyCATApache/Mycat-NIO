@@ -90,4 +90,8 @@ public class ReactorBufferPool {
 		return this.sharedBufferPool.allocate();
 	}
 
+    public SharedBufferPool getSharedBufferPool() {
+        return sharedBufferPool;
+    }
+
 }

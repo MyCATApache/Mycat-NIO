@@ -93,7 +93,7 @@ public class SharedBufferPool {
 		return bufferSize;
 	}
 
-	public int getChunkSize() {
+    public int getChunkSize() {
 		return chunkSize;
 	}
 
@@ -107,6 +107,7 @@ public class SharedBufferPool {
 
 	private ByteBuffer createDirectBuffer(int size) {
 		// for performance
+	    // TODO debug阶段用堆内存调试
 		return ByteBuffer.allocateDirect(size);
 	}
 

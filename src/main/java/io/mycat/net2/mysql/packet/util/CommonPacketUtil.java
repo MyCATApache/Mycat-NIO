@@ -1,4 +1,4 @@
-package io.mycat.net2.mysql;
+package io.mycat.net2.mysql.packet.util;
 
 import java.nio.ByteBuffer;
 
@@ -7,17 +7,21 @@ import org.slf4j.LoggerFactory;
 
 import io.mycat.net2.ByteBufferArray;
 import io.mycat.net2.Connection;
+import io.mycat.net2.mysql.connection.MySQLConnection;
+import io.mycat.net2.mysql.connection.back.MySQLBackendConnection;
+import io.mycat.net2.mysql.connection.front.MySQLFrontendConnection;
+import io.mycat.net2.mysql.packet.MySQLPacket;
 
-public class CommonPackageUtil {
+public class CommonPacketUtil {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CommonPackageUtil.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(CommonPacketUtil.class);
 
 	private final static int msyql_packetHeaderSize = 4;
 
 	private final static int mysql_packetTypeSize = 1;
 
 	private static final boolean validateHeader(int offset, int position) {
-		return offset + msyql_packetHeaderSize + mysql_packetTypeSize < position;
+		return offset + msyql_packetHeaderSize + mysql_packetTypeSize <= position;
 	}
 
 	/**
@@ -32,10 +36,6 @@ public class CommonPackageUtil {
 	 * @return 报文长度(Header长度+内容长度)
 	 */
 	private static final int getPacketLength(ByteBuffer buffer, int offset, int position) {
-		// 处理包头被分割时ByteBuffer越界的情况
-		if (offset + msyql_packetHeaderSize >= position) {
-			return -1;
-		}
 		int length = buffer.get(offset) & 0xff;
 		length |= (buffer.get(++offset) & 0xff) << 8;
 		length |= (buffer.get(++offset) & 0xff) << 16;
@@ -55,9 +55,6 @@ public class CommonPackageUtil {
 	 */
 	private static final byte getPacketType(ByteBuffer buffer, int packetLength, int offset, int position,
 			MySQLConnection con) {
-		if (offset + mysql_packetTypeSize >= position) {
-			return MySQLPacket.SPLITTED;
-		}
 		byte type = 0;
 		byte field = buffer.get(offset);
 		int connectedStatus = con.getConnectedStatus();
@@ -71,9 +68,9 @@ public class CommonPackageUtil {
 			} else if (connectedStatus == MySQLFrontendConnection.LOGIN_STATUS) {
 				// 区分开front和end的登录
 				type = MySQLPacket.AUTH_PACKET;
-				// TODO FAKE
+				// Fake for unit test
 				con.setState(Connection.State.connected);
-				// FAKE
+				// Fake for unit test
 			} else if (connectedStatus == MySQLBackendConnection.LOGIN_STATUS) {
 				// 区分开front和end的登录
 				type = handleLogin(field, con);
@@ -174,7 +171,7 @@ public class CommonPackageUtil {
 	}
 
 	/**
-	 * 解析出Package边界,Package为MSQL格式的报文，其他报文可以类比，
+	 * 解析出Packet边界,Packet为MSQL格式的报文，其他报文可以类比，
 	 * 
 	 * @param readBuffer
 	 *			当前（最后一个bytebuffer）
@@ -182,10 +179,10 @@ public class CommonPackageUtil {
 	 *			上次解析的位置偏移量
 	 * @return 下次解析的位置偏移量
 	 */
-	public static int parsePackages(ByteBufferArray bufferArray, ByteBuffer readBuffer, int readBufferOffset,
+	public static int parsePackets(ByteBufferArray bufferArray, ByteBuffer readBuffer, int readBufferOffset,
 			MySQLConnection con) {
 		int offset = readBufferOffset, length = 0, position = readBuffer.position();
-		while (offset <= position) {
+		while (offset < position) {
 			int curPacakgeLen = bufferArray.getCurPacageLength();
 			int packetType = bufferArray.getCurPacageType();
 			if (curPacakgeLen == 0) {// 还没有解析包头获取到长度
@@ -196,19 +193,19 @@ public class CommonPackageUtil {
 				}
 				length = getPacketLength(readBuffer, offset, position);
 				// 读取到了包头和长度
-				bufferArray.setCurPackageLength(length);
+				bufferArray.setCurPacketLength(length);
 				offset += msyql_packetHeaderSize;
 				// 解析报文类型
 				packetType = getPacketType(readBuffer, length, offset, position, con);
-				bufferArray.setCurPackageType(packetType);
+				bufferArray.setCurPacketType(packetType);
 				offset += mysql_packetTypeSize;
 			} else {
 				// 判断当前的数据包是否完整读取
-				int totalPackageSize = bufferArray.calcTotalPackageSize();
+				int totalPacketSize = bufferArray.calcTotalPacketSize();
 				int totalLength = bufferArray.getTotalBytesLength();
-				int exceededSize = totalLength - totalPackageSize;
+				int exceededSize = totalLength - totalPacketSize;
 				if (exceededSize >= 0) {// 刚好当前报文结束,或者有空间结余
-					bufferArray.increatePackageIndex();
+					bufferArray.increatePacketIndex();
 					offset = position - exceededSize;
 				} else {// 当前数据包还没读完
 					offset = 0;

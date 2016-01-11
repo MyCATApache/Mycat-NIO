@@ -1,9 +1,13 @@
-package io.mycat.net2.mysql;
+package io.mycat.net2.mysql.connection.back;
 
 import java.nio.channels.SocketChannel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.mycat.net2.mysql.connection.MySQLConnection;
+import io.mycat.net2.mysql.connection.MySQLConnectionStatus;
+import io.mycat.net2.mysql.packet.MySQLPacket;
 
 public class MySQLBackendConnection extends MySQLConnection {
 

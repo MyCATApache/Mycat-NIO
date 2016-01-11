@@ -1,14 +1,18 @@
-package io.mycat.net2.mysql;
+package io.mycat.net2.mysql.connection;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 import io.mycat.net2.ByteBufferArray;
 import io.mycat.net2.Connection;
+import io.mycat.net2.mysql.packet.ErrorPacket;
+import io.mycat.net2.mysql.packet.util.CommonPacketUtil;
 
 public abstract class MySQLConnection extends Connection {
 
     protected MySQLConnectionStatus connectedStatus;
+
+    protected byte[] seed;
 
     public MySQLConnection(SocketChannel channel) {
         super(channel);
@@ -28,7 +32,15 @@ public abstract class MySQLConnection extends Connection {
     }
 
     @Override
-    protected void parseProtocolPakage(ByteBufferArray readBufferArray, ByteBuffer readBuffer, int readBufferOffset) {
-        CommonPackageUtil.parsePackages(readBufferArray, readBuffer, readBufferOffset, this);
+    protected int parseProtocolPakage(ByteBufferArray readBufferArray, ByteBuffer readBuffer, int readBufferOffset) {
+        return CommonPacketUtil.parsePackets(readBufferArray, readBuffer, readBufferOffset, this);
+    }
+    
+    public void writeErrMessage(int errno, String info) {
+        ErrorPacket err = new ErrorPacket();
+        err.packetId = 1;
+        err.errno = errno;
+        err.message = info.getBytes();
+        err.write(this);
     }
 }
