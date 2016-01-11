@@ -315,75 +315,98 @@ public abstract class Connection implements ClosableConnection {
 	}
 
 	public void write(ByteBufferArray bufferArray) {
-//		try {
-//			writeQueueLock.lock();
-//			List<ByteBuffer> blockes = bufferArray.getWritedBlockLst();
-//			if (!bufferArray.getWritedBlockLst().isEmpty()) {
-//				for (ByteBuffer curBuf : blockes) {
-//					writeQueue.offer(curBuf);
-//				}
-//			}
-//			ByteBuffer curBuf = bufferArray.getCurWritingBlock();
-//			if (curBuf.position() == 0) {// empty
-//				this.recycle(curBuf);
-//			} else {
-//				writeQueue.offer(curBuf);
-//			}
-//		} finally {
-//			writeQueueLock.unlock();
-//			bufferArray.clear();
-//		}
-//		this.enableWrite(true);
+		// try {
+		// writeQueueLock.lock();
+		// List<ByteBuffer> blockes = bufferArray.getWritedBlockLst();
+		// if (!bufferArray.getWritedBlockLst().isEmpty()) {
+		// for (ByteBuffer curBuf : blockes) {
+		// writeQueue.offer(curBuf);
+		// }
+		// }
+		// ByteBuffer curBuf = bufferArray.getCurWritingBlock();
+		// if (curBuf.position() == 0) {// empty
+		// this.recycle(curBuf);
+		// } else {
+		// writeQueue.offer(curBuf);
+		// }
+		// } finally {
+		// writeQueueLock.unlock();
+		// bufferArray.clear();
+		// }
+		// this.enableWrite(true);
+		writeQueueLock.lock();
+		try {
+			writeQueue.add(bufferArray);
+		} finally {
+			writeQueueLock.unlock();
+		}
+		this.enableWrite(true);
+	}
 
+	public void write(byte[] data) {
+		ByteBufferArray bufferArray = myBufferPool.allocate();
+		ByteBuffer buffer = bufferArray.addNewBuffer();
+		buffer.put(data);
+		write(bufferArray);
 	}
 
 	private boolean write0() throws IOException {
 
-		int written = 0;
-		ByteBuffer buffer = writeBuffer;
-		if (buffer != null) {
-			while (buffer.hasRemaining()) {
-				written = channel.write(buffer);
-				if (written > 0) {
-					netOutBytes += written;
-					NetSystem.getInstance().addNetOutBytes(written);
+		for (;;) {
+			int written = 0;
+			ByteBufferArray arry = writeQueue.pull();
+			if (arry == null) {
+				break;
+			}
+			ByteBuffer buffer = arry.getLastByteBuffer();
+			buffer.flip();
 
+			// ByteBuffer buffer = writeBuffer;
+			if (buffer != null) {
+				while (buffer.hasRemaining()) {
+					written = channel.write(buffer);
+					if (written > 0) {
+						netOutBytes += written;
+						NetSystem.getInstance().addNetOutBytes(written);
+
+					} else {
+						break;
+					}
+				}
+
+				if (buffer.hasRemaining()) {
+					return false;
 				} else {
-					break;
+					writeBuffer = null;
+					recycle(buffer);
+					arry.recycle();
 				}
 			}
-
-			if (buffer.hasRemaining()) {
-				return false;
-			} else {
-				writeBuffer = null;
-				recycle(buffer);
-			}
 		}
-//		while ((buffer = writeQueue.poll()) != null) {
-//			if (buffer.limit() == 0) {
-//				recycle(buffer);
-//				close("quit send");
-//				return true;
-//			}
-//			buffer.flip();
-//			while (buffer.hasRemaining()) {
-//				written = channel.write(buffer);
-//				if (written > 0) {
-//					netOutBytes += written;
-//					NetSystem.getInstance().addNetOutBytes(written);
-//					lastWriteTime = TimeUtil.currentTimeMillis();
-//				} else {
-//					break;
-//				}
-//			}
-//			if (buffer.hasRemaining()) {
-//				writeBuffer = buffer;
-//				return false;
-//			} else {
-//				recycle(buffer);
-//			}
-//		}
+		// while ((buffer = writeQueue.poll()) != null) {
+		// if (buffer.limit() == 0) {
+		// recycle(buffer);
+		// close("quit send");
+		// return true;
+		// }
+		// buffer.flip();
+		// while (buffer.hasRemaining()) {
+		// written = channel.write(buffer);
+		// if (written > 0) {
+		// netOutBytes += written;
+		// NetSystem.getInstance().addNetOutBytes(written);
+		// lastWriteTime = TimeUtil.currentTimeMillis();
+		// } else {
+		// break;
+		// }
+		// }
+		// if (buffer.hasRemaining()) {
+		// writeBuffer = buffer;
+		// return false;
+		// } else {
+		// recycle(buffer);
+		// }
+		// }
 		return true;
 	}
 
@@ -472,9 +495,11 @@ public abstract class Connection implements ClosableConnection {
 					// 没有可读的机会，等待下次读取
 					readAgain = false;
 				}
-				
-				//子类负责解析报文
-                parseProtocolPakage(this.readBufferArray, readBuffer, readBufferOffset);
+
+				// 子类负责解析报文
+				readBufferOffset = parseProtocolPakage(this.readBufferArray, readBuffer, readBufferOffset);
+				// 解析后处理
+				handler.handle(this, this.readBufferArray);
 			}
 			}
 		}
@@ -490,10 +515,10 @@ public abstract class Connection implements ClosableConnection {
 
 	}
 
-    protected abstract void parseProtocolPakage(ByteBufferArray readBufferArray, ByteBuffer readBuffer,
-            int readBufferOffset);
+	protected abstract int parseProtocolPakage(ByteBufferArray readBufferArray, ByteBuffer readBuffer,
+			int readBufferOffset);
 
-    private void closeSocket() {
+	private void closeSocket() {
 
 		if (channel != null) {
 			boolean isSocketClosed = true;
@@ -546,6 +571,10 @@ public abstract class Connection implements ClosableConnection {
 	public void setPacketHeaderSize(int packetHeaderSize) {
 		this.packetHeaderSize = packetHeaderSize;
 
+	}
+
+	public ReactorBufferPool getMyBufferPool() {
+		return myBufferPool;
 	}
 
 }

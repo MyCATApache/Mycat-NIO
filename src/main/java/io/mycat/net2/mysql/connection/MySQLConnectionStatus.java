@@ -1,4 +1,4 @@
-package io.mycat.net2.mysql;
+package io.mycat.net2.mysql.connection;
 
 public abstract class MySQLConnectionStatus {
     private int status;

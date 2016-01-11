@@ -1,25 +1,24 @@
-package io.mycat.net2.mysql;
+package io.mycat.net2.mysql.packet;
 
-public interface MySQLPacket {
-    /** 未解析报文 */
-    int UNREAD = 0;
+import io.mycat.net2.ByteBufferArray;
 
-    /** 被截断 */
-    int SPLITTED = -100;
-
+public abstract class MySQLPacket {
+    
+    public static int packetHeaderSize = 4;
+    
     // 后端报文类型
-    byte OK_FIELD_COUNT = 0;
-    byte ERROR_FIELD_COUNT = (byte) 0xFF;
-    byte EOF_FIELD_COUNT = (byte) 0xFE;
-    byte REQUEST_FILE_FIELD_COUNT = (byte) 251;
+    public static final byte OK_FIELD_COUNT = 0;
+    public static final byte ERROR_FIELD_COUNT = (byte) 0xFF;
+    public static final byte EOF_FIELD_COUNT = (byte) 0xFE;
+    public static final byte REQUEST_FILE_FIELD_COUNT = (byte) 251;
 
-    byte OK_PACKET = 0;
-    byte ERROR_PACKET = (byte) 0xFF;
-    byte EOF_PACKET = (byte) 0xFE;
-    byte FIELD_EOF_PACKET = (byte) 0xFE;
-    byte ROW_EOF_PACKET = (byte) 0xFE;
-    byte AUTH_PACKET = 1;
-    byte QUIT_PACKET = 2;
+    public static final byte OK_PACKET = 0;
+    public static final byte ERROR_PACKET = (byte) 0xFF;
+    public static final byte EOF_PACKET = (byte) 0xFE;
+    public static final byte FIELD_EOF_PACKET = (byte) 0xFE;
+    public static final byte ROW_EOF_PACKET = (byte) 0xFE;
+    public static final byte AUTH_PACKET = 1;
+    public static final byte QUIT_PACKET = 2;
 
     // 前端报文类型
     /**
@@ -173,4 +172,32 @@ public interface MySQLPacket {
      * Mycat heartbeat
      */
     public static final byte COM_HEARTBEAT = 64;
+    
+    
+    public int packetLength;
+    public byte packetId;
+
+    /**
+     * 把数据包写到BufferArray中
+     */
+    public void write(ByteBufferArray bufferArray) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * 计算数据包大小，不包含包头长度。
+     */
+    public abstract int calcPacketSize();
+
+    /**
+     * 取得数据包信息
+     */
+    protected abstract String getPacketInfo();
+
+    @Override
+    public String toString() {
+        return new StringBuilder().append(getPacketInfo()).append("{length=")
+                .append(packetLength).append(",id=").append(packetId)
+                .append('}').toString();
+    }
 }

@@ -13,9 +13,10 @@ import org.junit.Test;
 import io.mycat.net2.ByteBufferArray;
 import io.mycat.net2.ReactorBufferPool;
 import io.mycat.net2.SharedBufferPool;
-import io.mycat.net2.mysql.MySQLConnection;
-import io.mycat.net2.mysql.MySQLFrontendConnection;
-import io.mycat.net2.mysql.MySQLPacket;
+import io.mycat.net2.mysql.connection.MySQLConnection;
+import io.mycat.net2.mysql.connection.front.MySQLFrontendConnection;
+import io.mycat.net2.mysql.packet.MySQLPacket;
+import io.mycat.net2.mysql.packet.util.CommonPacketUtil;
 import junit.framework.Assert;
 
 public class TestMySQLPackageSplitter {
@@ -56,7 +57,7 @@ public class TestMySQLPackageSplitter {
             byte[] data = new byte[curBuf.remaining()];
             int readed = mysqlPackgsStream.read(data);
             curBuf.put(data, 0, readed);
-            readBufferOffset = CommonPackageUtil.parsePackages(bufArray, curBuf, readBufferOffset, fakeCon);
+            readBufferOffset = CommonPacketUtil.parsePackets(bufArray, curBuf, readBufferOffset, fakeCon);
         }
         return bufArray;
     }
