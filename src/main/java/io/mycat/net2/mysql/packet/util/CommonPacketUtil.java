@@ -16,9 +16,9 @@ public class CommonPacketUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CommonPacketUtil.class);
 
-	private final static int msyql_packetHeaderSize = 4;
+	public final static int msyql_packetHeaderSize = 4;
 
-	private final static int mysql_packetTypeSize = 1;
+	public final static int mysql_packetTypeSize = 1;
 
 	private static final boolean validateHeader(int offset, int position) {
 		return offset + msyql_packetHeaderSize + mysql_packetTypeSize <= position;

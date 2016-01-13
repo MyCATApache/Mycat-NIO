@@ -84,7 +84,6 @@ public final class SelectVersionComment {
 
         // post write
         c.write(bufferArray);
-        bufferArray.recycle();
 
         c.setNextConnectedStatus(MySQLPacket.OK_PACKET);
         c.setNextConnectedStatus(MySQLPacket.OK_PACKET);

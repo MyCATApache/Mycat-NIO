@@ -26,36 +26,37 @@ package io.mycat.net2.mysql.packet;
 import java.nio.ByteBuffer;
 
 import io.mycat.net2.ByteBufferArray;
-import io.mycat.net2.Connection;
 import io.mycat.net2.NetSystem;
+import io.mycat.net2.mysql.connection.MySQLConnection;
 import io.mycat.net2.mysql.packet.util.BufferUtil;
 
 /**
- * From server to client in response to command, if error.
+ * From server to client in response to command, if no error and no result set.
  * 
  * <pre>
  * Bytes                       Name
  * -----                       ----
- * 1                           field_count, always = 0xff
- * 2                           errno
- * 1                           (sqlstate marker), always '#'
- * 5                           sqlstate (5 characters)
- * n                           message
+ * 1                           field_count, always = 0
+ * 1-9 (Length Coded Binary)   affected_rows
+ * 1-9 (Length Coded Binary)   insert_id
+ * 2                           server_status
+ * 2                           warning_count
+ * n   (until end of packet)   message fix:(Length Coded String)
  * 
- * &#64;see http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol#Error_Packet
+ * &#64;see http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol#OK_Packet
  * </pre>
  * 
  * @author mycat
  */
-public class ErrorPacket extends MySQLPacket {
-    public static final byte FIELD_COUNT = (byte) 0xff;
-    private static final byte SQLSTATE_MARKER = (byte) '#';
-    private static final byte[] DEFAULT_SQLSTATE = "HY000".getBytes();
+public class OkPacket extends MySQLPacket {
+    public static final byte FIELD_COUNT = 0x00;
+    public static final byte[] OK = new byte[] { 7, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0 };
 
     public byte fieldCount = FIELD_COUNT;
-    public int errno;
-    public byte mark = SQLSTATE_MARKER;
-    public byte[] sqlState = DEFAULT_SQLSTATE;
+    public long affectedRows;
+    public long insertId;
+    public int serverStatus;
+    public int warningCount;
     public byte[] message;
 
     // public void read(BinaryPacket bin) {
@@ -63,25 +64,13 @@ public class ErrorPacket extends MySQLPacket {
     // packetId = bin.packetId;
     // MySQLMessage mm = new MySQLMessage(bin.data);
     // fieldCount = mm.read();
-    // errno = mm.readUB2();
-    // if (mm.hasRemaining() && (mm.read(mm.position()) == SQLSTATE_MARKER)) {
-    // mm.read();
-    // sqlState = mm.readBytes(5);
+    // affectedRows = mm.readLength();
+    // insertId = mm.readLength();
+    // serverStatus = mm.readUB2();
+    // warningCount = mm.readUB2();
+    // if (mm.hasRemaining()) {
+    // this.message = mm.readBytesWithLength();
     // }
-    // message = mm.readBytes();
-    // }
-
-    // public void read(byte[] data) {
-    // MySQLMessage mm = new MySQLMessage(data);
-    // packetLength = mm.readUB3();
-    // packetId = mm.read();
-    // fieldCount = mm.read();
-    // errno = mm.readUB2();
-    // if (mm.hasRemaining() && (mm.read(mm.position()) == SQLSTATE_MARKER)) {
-    // mm.read();
-    // sqlState = mm.readBytes(5);
-    // }
-    // message = mm.readBytes();
     // }
 
     public void read(ByteBufferArray bufferArray, int packetIndex) {
@@ -89,25 +78,26 @@ public class ErrorPacket extends MySQLPacket {
         packetLength = mm.readUB3();
         packetId = mm.read();
         fieldCount = mm.read();
-        errno = mm.readUB2();
-        if (mm.hasRemaining() && (mm.read(mm.position()) == SQLSTATE_MARKER)) {
-            mm.read();
-            sqlState = mm.readBytes(5);
+        affectedRows = mm.readLength();
+        insertId = mm.readLength();
+        serverStatus = mm.readUB2();
+        warningCount = mm.readUB2();
+        if (mm.hasRemaining()) {
+            this.message = mm.readBytesWithLength();
         }
-        message = mm.readBytes();
     }
 
     public byte[] writeToBytes() {
-        ByteBuffer buffer = ByteBuffer.allocate(calcPacketSize() + 4);
-        int size = calcPacketSize();
-        BufferUtil.writeUB3(buffer, size);
+        ByteBuffer buffer = NetSystem.getInstance().getBufferPool().allocate();
+        BufferUtil.writeUB3(buffer, calcPacketSize());
         buffer.put(packetId);
         buffer.put(fieldCount);
-        BufferUtil.writeUB2(buffer, errno);
-        buffer.put(mark);
-        buffer.put(sqlState);
+        BufferUtil.writeLength(buffer, affectedRows);
+        BufferUtil.writeLength(buffer, insertId);
+        BufferUtil.writeUB2(buffer, serverStatus);
+        BufferUtil.writeUB2(buffer, warningCount);
         if (message != null) {
-            buffer.put(message);
+            BufferUtil.writeWithLength(buffer, message);
         }
         buffer.flip();
         byte[] data = new byte[buffer.limit()];
@@ -116,35 +106,37 @@ public class ErrorPacket extends MySQLPacket {
         return data;
     }
 
-    public void write(Connection c) {
+    public void write(MySQLConnection c) {
         ByteBufferArray bufferArray = c.getMyBufferPool().allocate();
         ByteBuffer buffer = bufferArray.addNewBuffer();
-        int size = calcPacketSize();
-        BufferUtil.writeUB3(buffer, size);
+        BufferUtil.writeUB3(buffer, calcPacketSize());
         buffer.put(packetId);
         buffer.put(fieldCount);
-        BufferUtil.writeUB2(buffer, errno);
-        buffer.put(mark);
-        buffer.put(sqlState);
+        BufferUtil.writeLength(buffer, affectedRows);
+        BufferUtil.writeLength(buffer, insertId);
+        BufferUtil.writeUB2(buffer, serverStatus);
+        BufferUtil.writeUB2(buffer, warningCount);
         if (message != null) {
-            buffer.put(message);
-
+            BufferUtil.writeWithLength(buffer, message);
         }
         c.write(bufferArray);
     }
 
     @Override
     public int calcPacketSize() {
-        int size = 9;// 1 + 2 + 1 + 5
+        int i = 1;
+        i += BufferUtil.getLength(affectedRows);
+        i += BufferUtil.getLength(insertId);
+        i += 4;
         if (message != null) {
-            size += message.length;
+            i += BufferUtil.getLength(message);
         }
-        return size;
+        return i;
     }
 
     @Override
     protected String getPacketInfo() {
-        return "MySQL Error Packet";
+        return "MySQL OK Packet";
     }
 
 }
