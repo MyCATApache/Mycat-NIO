@@ -49,7 +49,5 @@ public final class FakeResultSet {
         eof.write(bufferArray);
 
         c.write(bufferArray);
-        
-        bufferArray.recycle();
     }
 }

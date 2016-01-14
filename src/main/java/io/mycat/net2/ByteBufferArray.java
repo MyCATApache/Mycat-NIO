@@ -29,6 +29,7 @@ public class ByteBufferArray {
     private int[] packetLengths = new int[CAPACITY];
     private int curPacageIndex = 0;
     private final int blockCapasity;
+    private int curHandlingPacageIndex = 0;
 
     public ByteBufferArray(ReactorBufferPool bufferPool) {
         super();
@@ -226,15 +227,35 @@ public class ByteBufferArray {
     }
 
     public byte readPacket(int packetIndex, int offset) {
+        // TODO 性能可能很低
         final int blockCapasity = this.blockCapasity;
         int totalBytes = 0;
         for (int i = 0; i < packetIndex; i++) {
             totalBytes += packetLengths[i] & PACKAGE_LENGTH_UNIT;
         }
         totalBytes += offset;
-        int blockIndex = totalBytes / blockCapasity;
-        int blockOffset = totalBytes % blockCapasity;
+        int blockIndex = 0;
+        int blockOffset = 0;
+        int endBlock = writedBlockLst.size();
+        for (int i = 0; i < endBlock; i++) {
+            ByteBuffer bytBuf = writedBlockLst.get(i);
+            if (totalBytes >= bytBuf.position()) {
+                totalBytes -= bytBuf.position();
+                blockIndex++;
+            } else {
+                blockOffset = totalBytes;
+                break;
+            }
+        }
         return writedBlockLst.get(blockIndex).get(blockOffset);
+    }
+
+    public int getCurHandlingPacageIndex() {
+        return curHandlingPacageIndex;
+    }
+
+    public void setCurHandlingPacageIndex(int curHandlingPacageIndex) {
+        this.curHandlingPacageIndex = curHandlingPacageIndex;
     }
 
 }

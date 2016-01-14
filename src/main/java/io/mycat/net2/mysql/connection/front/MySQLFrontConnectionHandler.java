@@ -1,18 +1,28 @@
 package io.mycat.net2.mysql.connection.front;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.mycat.net2.BackendConnection;
 import io.mycat.net2.ByteBufferArray;
 import io.mycat.net2.Connection;
 import io.mycat.net2.NIOHandler;
+import io.mycat.net2.mysql.MockMySQLServer;
+import io.mycat.net2.mysql.connection.back.MySQLBackendConnection;
 import io.mycat.net2.mysql.definination.ErrorCode;
+import io.mycat.net2.mysql.handler.ResponseHandler;
 import io.mycat.net2.mysql.handler.SelectHandler;
 import io.mycat.net2.mysql.packet.AuthPacket;
+import io.mycat.net2.mysql.packet.EOFPacket;
+import io.mycat.net2.mysql.packet.FieldPacket;
 import io.mycat.net2.mysql.packet.MySQLMessage;
 import io.mycat.net2.mysql.packet.MySQLPacket;
+import io.mycat.net2.mysql.packet.ResultSetHeaderPacket;
+import io.mycat.net2.mysql.packet.RowDataPacket;
+import io.mycat.net2.mysql.packet.util.CommonPacketUtil;
 import io.mycat.net2.mysql.parser.ServerParse;
 
 public class MySQLFrontConnectionHandler implements NIOHandler<MySQLFrontendConnection> {
@@ -57,7 +67,7 @@ public class MySQLFrontConnectionHandler implements NIOHandler<MySQLFrontendConn
         }
     }
 
-    private void doQuery(MySQLFrontendConnection con, ByteBufferArray bufferArray, int packetIndex) {
+    private void doQuery(MySQLFrontendConnection con, ByteBufferArray bufferArray, final int packetIndex) {
         // 取得语句
         MySQLMessage mm = new MySQLMessage(bufferArray, packetIndex);
         mm.position(5);
@@ -96,7 +106,7 @@ public class MySQLFrontConnectionHandler implements NIOHandler<MySQLFrontendConn
             break;
         case ServerParse.SELECT:
             LOGGER.debug("SELECT");
-            SelectHandler.handle(sql, con, rs >>> 8);
+            // SelectHandler.handle(sql, con, rs >>> 8);
             break;
         case ServerParse.START:
             LOGGER.debug("START");
@@ -136,6 +146,75 @@ public class MySQLFrontConnectionHandler implements NIOHandler<MySQLFrontendConn
             break;
         default:
             LOGGER.debug("DEFAULT");
+        }
+        if (sql.equals("select @@version_comment limit 1")) {
+            SelectHandler.handle(sql, con, rs >>> 8);
+            return;
+        }
+        // TODO MOCK
+        try {
+            BackendConnection backCon = MockMySQLServer.mockDBNodes.get(MockMySQLServer.MOCK_HOSTNAME)
+                    .getConnection(MockMySQLServer.MOCK_SCHEMA, true, null);
+            backCon.setResponseHandler(new ResponseHandler() {
+
+                private ByteBufferArray newBufferArray;
+
+                private ByteBuffer newBuffer;
+
+                @Override
+                public void connectionError(Throwable e, BackendConnection conn) {
+                    // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void connectionClose(BackendConnection conn, String reason) {
+                    // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void connectionAcquired(BackendConnection conn) {
+                    // TODO Auto-generated method stub
+
+                }
+
+                @Override
+                public void handleResponse(ByteBufferArray bufferArray, BackendConnection conn) {
+                    // Mock 直接转发给前端
+                    // IMPORTANT!! 处理粘包
+                    int lastPacketIndex = bufferArray.getCurPacageIndex() - 1;
+                    if (newBufferArray == null) {
+                        newBufferArray = con.getMyBufferPool().allocate();
+                        newBuffer = newBufferArray.addNewBuffer();
+                    }
+                    for (int i = bufferArray.getCurHandlingPacageIndex(); i <= lastPacketIndex; i++) {
+                        newBuffer = newBufferArray.checkWriteBuffer(bufferArray.getPacageLength(i));
+                        sendPacket(newBuffer, bufferArray, i);
+                    }
+                    bufferArray.setCurHandlingPacageIndex(lastPacketIndex + 1);
+                }
+
+                @Override
+                public void finishResponse(BackendConnection conn) {
+                    con.write(newBufferArray);
+                    conn.release();
+                }
+            });
+            // 后面需要加入handler
+            MySQLBackendConnection mysqlBackCon = (MySQLBackendConnection) backCon;
+            ByteBufferArray newBufferArray = mysqlBackCon.getMyBufferPool().allocate();
+            ByteBuffer newBuffer = newBufferArray.addNewBuffer();
+            sendPacket(newBuffer, bufferArray, packetIndex);
+            mysqlBackCon.write(newBufferArray);
+        } catch (Exception e) {
+            LOGGER.error("Error", e);
+        }
+    }
+
+    private void sendPacket(ByteBuffer newBuffer, ByteBufferArray bufferArray, int packetIndex) {
+        for (int i = 0; i < bufferArray.getPacageLength(packetIndex); i++) {
+            newBuffer.put(bufferArray.readPacket(packetIndex, i));
         }
     }
 

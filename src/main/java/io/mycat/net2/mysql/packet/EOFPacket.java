@@ -48,20 +48,20 @@ import io.mycat.net2.mysql.packet.util.BufferUtil;
  * @author mycat
  */
 public class EOFPacket extends MySQLPacket {
-    public static final byte FIELD_COUNT = (byte) 0xfe;
 
+    public static final byte FIELD_COUNT = (byte) 0xfe;
     public byte fieldCount = FIELD_COUNT;
     public int warningCount;
     public int status = 2;
 
-    // public void read(byte[] data) {
-    // MySQLMessage mm = new MySQLMessage(data);
-    // packetLength = mm.readUB3();
-    // packetId = mm.read();
-    // fieldCount = mm.read();
-    // warningCount = mm.readUB2();
-    // status = mm.readUB2();
-    // }
+    public void read(ByteBufferArray bufferArray, int packetIndex) {
+        MySQLMessage mm = new MySQLMessage(bufferArray, packetIndex);
+        packetLength = mm.readUB3();
+        packetId = mm.read();
+        fieldCount = mm.read();
+        warningCount = mm.readUB2();
+        status = mm.readUB2();
+    }
 
     @Override
     public void write(ByteBufferArray bufferArray) {
