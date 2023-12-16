@@ -27,19 +27,19 @@
 		<repository>
 			<id>nexus</id>
 			<name>local private nexus</name>
-			<url>http://nexus.mycat.io/content/groups/public</url>
+			<url>https://nexus.mycat.io/content/groups/public</url>
 		</repository>
 	</repositories>
 	<distributionManagement>
 		<repository>
 			<id>releases</id>
 			<name>Internal Releases</name>
-			<url>http://nexus.mycat.io/content/repositories/releases</url>
+			<url>https://nexus.mycat.io/content/repositories/releases</url>
 		</repository>
 		<snapshotRepository>
 			<id>snapshots</id>
 			<name>Internal Snapshots</name>
-			<url>http://nexus.mycat.io/content/repositories/snapshots</url>
+			<url>https://nexus.mycat.io/content/repositories/snapshots</url>
 		</snapshotRepository>
 	</distributionManagement>
 	<dependencies>
